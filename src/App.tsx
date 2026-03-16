@@ -184,6 +184,35 @@ function buildEventsFromMidiNotes(notes: ScoreNote[]): { events: DemoEvent[]; ev
   return { events, eventTimes };
 }
 
+function buildEventTimelineMs(events: DemoEvent[]): { startTimesMs: number[]; totalMs: number } {
+  if (!events.length) return { startTimesMs: [], totalMs: 0 };
+  const startTimesMs: number[] = [];
+  let totalMs = 0;
+  events.forEach((event) => {
+    startTimesMs.push(totalMs);
+    totalMs += Math.max(1, event.ms);
+  });
+  return { startTimesMs, totalMs };
+}
+
+function eventIndexAtTime(timeMs: number, startTimesMs: number[]): number {
+  if (!startTimesMs.length) return 0;
+  let idx = 0;
+  for (let i = 0; i < startTimesMs.length; i += 1) {
+    if (startTimesMs[i] <= timeMs + 1e-6) idx = i;
+    else break;
+  }
+  return idx;
+}
+
+function buildStepMap<T>(items: Array<T | null>): number[] {
+  let step = -1;
+  return items.map((item) => {
+    if (item !== null) step += 1;
+    return Math.max(step, 0);
+  });
+}
+
 const DEMOS: Demo[] = [
   { id: 'bach-c-major', composer: 'J.S. Bach', title: 'Prelude in C major, BWV 846', subtitle: 'Wikimedia Commons full audio', sourceLabel: 'Wikimedia Commons audio', audioUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/02/Kevin_MacLeod_-_J_S_Bach_Prelude_in_C_-_BWV_846.ogg', events: buildFullArpBars([['C','E','G'],['D','F','A'],['G','B','D'],['C','E','G'],['A','C','F'],['G','B','D'],['C','E','G'],['D','F','A'],['G','B','D'],['C','E','G'],['F','A','C'],['C','E','G'],['D','F','A'],['G','B','D'],['C','E','G'],['A','C','E'],['D','F','A'],['G','B','D'],['C','E','G'],['F','A','C'],['B','D','G'],['E','G','C'],['A','C','F'],['D','F','A'],['G','B','D'],['C','E','G'],['F','A','C'],['D','F','B'],['E','G','C'],['A','C','F'],['D','F','A'],['G','B','D'],['C','E','G'],['G','B','D'],['C','E','G']], 165, 'Bar') },
   { id: 'bach-suite', composer: 'J.S. Bach', title: 'Cello Suite No. 1 Prelude, BWV 1007', subtitle: 'Wikimedia Commons full audio', sourceLabel: 'Wikimedia Commons audio', audioUrl: 'https://upload.wikimedia.org/wikipedia/commons/9/9d/Bach_-_Cello_Suite_no._1_in_G_major%2C_BWV_1007_-_I._Pr%C3%A9lude.ogg', events: buildFullArpBars([['G','B','D'],['A','C','E'],['B','D','F#'],['C','E','G'],['D','F#','A'],['G','B','D'],['C','E','G'],['D','F#','A'],['G','B','D'],['E','G','B'],['A','C','E'],['D','F#','A'],['G','B','D'],['C','E','G'],['A','C','E'],['D','F#','A'],['G','B','D'],['B','D','F#'],['C','E','G'],['D','F#','A'],['G','B','D'],['C','E','G'],['A','C','E'],['D','F#','A']], 175, 'Section') },
@@ -237,14 +266,13 @@ function useSampledPiano() {
       synthRef.current.triggerAttackRelease(voiced, Math.max(0.08, ms / 1000), undefined, 0.86);
     }
   }, [ensureStarted, samplerReady]);
-  const scheduleNote = useCallback(async (note: string, duration: number, time: number, velocity: number) => {
-    await ensureStarted();
+  const scheduleNote = useCallback((note: string, duration: number, time: number, velocity: number) => {
     if (samplerReady && samplerRef.current) {
       samplerRef.current.triggerAttackRelease(note, Math.max(0.03, duration), time, Math.min(1, Math.max(0.15, velocity)));
       return;
     }
     synthRef.current?.triggerAttackRelease(note, Math.max(0.03, duration), time, Math.min(1, Math.max(0.15, velocity)));
-  }, [ensureStarted, samplerReady]);
+  }, [samplerReady]);
   const stop = useCallback(() => { samplerRef.current?.releaseAll(); synthRef.current?.releaseAll(); }, []);
   return { playChord, scheduleNote, stop, samplerReady, ensureStarted };
 }
@@ -352,7 +380,7 @@ export default function MusicalIcosahedraLab() {
   const [midiError, setMidiError] = useState<string>('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const clickPiano = useSampledPiano();
-  const midiPartRef = useRef<Tone.Part<any> | null>(null);
+  const midiPartRef = useRef<Tone.Part<ScoreNote> | null>(null);
 
   const selectedDemo = useMemo(() => DEMOS.find((d) => d.id === selectedDemoId) || DEMOS[0], [selectedDemoId]);
   const activeMap = useMemo(() => compareSymmetry ? mutate(noteMap) : noteMap, [compareSymmetry, noteMap]);
@@ -365,6 +393,7 @@ export default function MusicalIcosahedraLab() {
 
   const analysisEvents = useMemo(() => (useMidiGeometry && midiPilot && selectedDemo.id === RACH_ID ? midiPilot.events : selectedDemo.events), [useMidiGeometry, midiPilot, selectedDemo]);
   const analysisEventTimes = useMemo(() => (useMidiGeometry && midiPilot && selectedDemo.id === RACH_ID ? midiPilot.eventTimes : []), [useMidiGeometry, midiPilot, selectedDemo]);
+  const analysisTimeline = useMemo(() => buildEventTimelineMs(analysisEvents), [analysisEvents]);
 
   const piecePathItems: MatchItem[] = useMemo(() => analysisEvents.map((ev) => ({
     face: bestGeometryMatch(ev.harmony, geometryItemsIco) as number | null,
@@ -382,17 +411,19 @@ export default function MusicalIcosahedraLab() {
     return out;
   };
 
-  const piecePathFaces = useMemo(() => dedupeKeepOrder(piecePathItems.map((x) => x.face)) as number[], [piecePathItems]);
-  const piecePathTonnetz = useMemo(() => dedupeKeepOrder(piecePathItems.map((x) => x.tonnetzId)) as string[], [piecePathItems]);
-  const activeFacePath = manualIcoSequence.length ? dedupeKeepOrder(manualIcoSequence) as number[] : (piecePathFaces.length ? piecePathFaces : DEFAULT_PATH);
-  const activeTonnetzPath = manualTonnetzSequence.length ? dedupeKeepOrder(manualTonnetzSequence) as string[] : piecePathTonnetz;
+  const pieceFaceEventPath = useMemo(() => piecePathItems.flatMap((item) => (item.face === null ? [] : [item.face])), [piecePathItems]);
+  const pieceTonnetzEventPath = useMemo(() => piecePathItems.flatMap((item) => (item.tonnetzId === null ? [] : [item.tonnetzId])), [piecePathItems]);
+  const faceStepMap = useMemo(() => buildStepMap(piecePathItems.map((item) => item.face)), [piecePathItems]);
+  const tonnetzStepMap = useMemo(() => buildStepMap(piecePathItems.map((item) => item.tonnetzId)), [piecePathItems]);
+  const activeFacePath = manualIcoSequence.length ? dedupeKeepOrder(manualIcoSequence) as number[] : (pieceFaceEventPath.length ? pieceFaceEventPath : DEFAULT_PATH);
+  const activeTonnetzPath = manualTonnetzSequence.length ? dedupeKeepOrder(manualTonnetzSequence) as string[] : pieceTonnetzEventPath;
 
   const audioAutoIndex = useMemo(() => {
     const total = analysisEvents.length;
     if (!durationSec || total <= 1 || useMidiGeometry) return currentIndex;
-    const idx = Math.floor((currentSec / durationSec) * total);
-    return Math.max(0, Math.min(total - 1, idx));
-  }, [analysisEvents.length, durationSec, currentSec, currentIndex, useMidiGeometry]);
+    const scaledMs = (currentSec / durationSec) * analysisTimeline.totalMs;
+    return eventIndexAtTime(scaledMs, analysisTimeline.startTimesMs);
+  }, [analysisEvents.length, analysisTimeline, durationSec, currentSec, currentIndex, useMidiGeometry]);
 
   const midiAutoIndex = useMemo(() => {
     if (!(useMidiGeometry && midiPilot && selectedDemo.id === RACH_ID)) return currentIndex;
@@ -408,8 +439,8 @@ export default function MusicalIcosahedraLab() {
   const effectiveIndex = useMidiGeometry && midiPilot && selectedDemo.id === RACH_ID ? midiAutoIndex : (isPlaying ? audioAutoIndex : currentIndex);
   const currentFace = piecePathItems[effectiveIndex]?.face ?? activeFacePath[0] ?? null;
   const currentTonnetz = piecePathItems[effectiveIndex]?.tonnetzId ?? activeTonnetzPath[0] ?? null;
-  const faceStep = currentFace === null ? 0 : Math.max(0, activeFacePath.indexOf(currentFace));
-  const tonnetzStep = currentTonnetz === null ? 0 : Math.max(0, activeTonnetzPath.indexOf(currentTonnetz));
+  const faceStep = manualIcoSequence.length ? (currentFace === null ? 0 : Math.max(0, activeFacePath.indexOf(currentFace))) : (faceStepMap[effectiveIndex] ?? 0);
+  const tonnetzStep = manualTonnetzSequence.length ? (currentTonnetz === null ? 0 : Math.max(0, activeTonnetzPath.indexOf(currentTonnetz))) : (tonnetzStepMap[effectiveIndex] ?? 0);
   const currentEvent = analysisEvents[effectiveIndex] || analysisEvents[0] || { notes: [], ms: 0, harmony: [], label: '' };
   const stats = useMemo(() => summarizeProgression(analysisEvents.map((e) => e.harmony)), [analysisEvents]);
 
@@ -468,9 +499,9 @@ export default function MusicalIcosahedraLab() {
     Tone.Transport.position = 0;
     Tone.Transport.seconds = 0;
     if (pilot.bpm) Tone.Transport.bpm.value = pilot.bpm;
-    const part = new Tone.Part((time, value: ScoreNote) => {
+    const part = new Tone.Part((time: number, value: ScoreNote) => {
       clickPiano.scheduleNote(value.name, value.duration, time, value.velocity);
-    }, pilot.notes.map((n) => [n.time, n] as [number, ScoreNote]));
+    }, pilot.notes);
     part.start(0);
     midiPartRef.current = part;
     setMidiProgressSec(0);
@@ -483,7 +514,7 @@ export default function MusicalIcosahedraLab() {
     try {
       const buffer = await file.arrayBuffer();
       const midi = new Midi(buffer);
-      const notes: ScoreNote[] = midi.tracks.flatMap((track, ti) => track.notes.map((n) => ({ midi: n.midi, name: n.name, time: n.time, duration: n.duration, velocity: n.velocity, track: ti }))).sort((a, b) => a.time - b.time || a.midi - b.midi);
+      const notes: ScoreNote[] = midi.tracks.flatMap((track, ti) => track.notes.map((n) => ({ midi: n.midi, name: n.name, time: n.time, duration: n.duration, velocity: n.velocity, track: ti }))).sort((a: ScoreNote, b: ScoreNote) => a.time - b.time || a.midi - b.midi);
       const built = buildEventsFromMidiNotes(notes);
       const pilot: MidiPilot = {
         fileName: file.name,
@@ -527,9 +558,10 @@ export default function MusicalIcosahedraLab() {
     Tone.Transport.stop();
     Tone.Transport.position = 0;
     Tone.Transport.seconds = 0;
+    clickPiano.stop();
     setMidiPlaying(false);
     setMidiProgressSec(0);
-  }, []);
+  }, [clickPiano]);
 
   const handlePlayPause = useCallback(async () => {
     const audio = audioRef.current;
@@ -571,12 +603,13 @@ export default function MusicalIcosahedraLab() {
     }
     const audio = audioRef.current;
     if (!audio || !durationSec) return;
-    const t = (nextIndex / Math.max(1, total - 1)) * durationSec;
+    const startMs = analysisTimeline.startTimesMs[nextIndex] ?? 0;
+    const t = analysisTimeline.totalMs ? (startMs / analysisTimeline.totalMs) * durationSec : 0;
     audio.currentTime = t;
     setCurrentSec(t);
     audio.pause();
     setIsPlaying(false);
-  }, [analysisEvents.length, effectiveIndex, useMidiGeometry, midiPilot, selectedDemo.id, analysisEventTimes, durationSec]);
+  }, [analysisEvents.length, effectiveIndex, useMidiGeometry, midiPilot, selectedDemo.id, analysisEventTimes, analysisTimeline, durationSec]);
 
   const scrub = useCallback((value: number) => {
     const total = analysisEvents.length;
@@ -592,12 +625,13 @@ export default function MusicalIcosahedraLab() {
     }
     const audio = audioRef.current;
     if (!audio || !durationSec) return;
-    const t = (safe / Math.max(1, total - 1)) * durationSec;
+    const startMs = analysisTimeline.startTimesMs[safe] ?? 0;
+    const t = analysisTimeline.totalMs ? (startMs / analysisTimeline.totalMs) * durationSec : 0;
     audio.currentTime = t;
     setCurrentSec(t);
     audio.pause();
     setIsPlaying(false);
-  }, [analysisEvents.length, useMidiGeometry, midiPilot, selectedDemo.id, analysisEventTimes, durationSec]);
+  }, [analysisEvents.length, useMidiGeometry, midiPilot, selectedDemo.id, analysisEventTimes, analysisTimeline, durationSec]);
 
   const handleFaceClick = useCallback(async (faceIndex: number) => {
     await clickPiano.playChord(chordForFace(faceIndex, activeMap), 420);
