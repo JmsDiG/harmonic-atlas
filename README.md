@@ -94,8 +94,6 @@ For uploaded MIDI, the analytical layer is derived directly from parsed note eve
 - @tonejs/midi
 - GitHub Pages
 
-## Running Locally
-
 ## Project status
 - actively developed
 - current focus: improving exact MIDI playback and route fidelity
@@ -107,6 +105,7 @@ For uploaded MIDI, the analytical layer is derived directly from parsed note eve
 - @tonejs/midi
 - M. I. Kornev, "The Technique of Musical Icosahedra," Muzykalnaya Akademiya, 2025, no. 3, pp. 64-83. DOI: 10.34690/479.
 
+## Running Locally
 ### 1. Clone the repository
 ```bash
 git clone https://github.com/JmsDiG/harmonic-atlas.git
