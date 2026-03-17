@@ -96,6 +96,17 @@ For uploaded MIDI, the analytical layer is derived directly from parsed note eve
 
 ## Running Locally
 
+## Project status
+- actively developed
+- current focus: improving exact MIDI playback and route fidelity
+- future direction: full MusicXML/MIDI score-driven mapping
+
+## Credits
+- Wikimedia Commons audio sources
+- Tone.js
+- @tonejs/midi
+- M. I. Kornev, "The Technique of Musical Icosahedra," Muzykalnaya Akademiya, 2025, no. 3, pp. 64-83. DOI: 10.34690/479.
+
 ### 1. Clone the repository
 ```bash
 git clone https://github.com/JmsDiG/harmonic-atlas.git
