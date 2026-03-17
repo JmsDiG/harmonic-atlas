@@ -1,6 +1,9 @@
 # Harmonic Atlas
 ### Icosahedron and Tonnetz Audio Edition
 
+<img width="621" height="559" alt="image" src="https://github.com/user-attachments/assets/8cadf77d-bc58-43c9-8a7c-9abade642e81" />
+
+
 Harmonic Atlas is an interactive web laboratory for exploring harmonic motion through geometry. It maps musical material into two complementary spaces: a three-dimensional musical icosahedron and Euler’s Tonnetz.
 
 The project combines:
