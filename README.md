@@ -7,10 +7,10 @@
 Harmonic Atlas is an interactive web laboratory for exploring harmonic motion through geometry. It maps musical material into two complementary spaces: a three-dimensional musical icosahedron and Euler’s Tonnetz.
 
 The project combines:
-- full-audio classical works,
+- full-audio works,
 - animated harmonic paths,
 - interactive face and cell selection,
-- and a MIDI-driven pilot for score-based harmonic analysis.
+- and a MIDI-driven pilot for harmonic analysis.
 
 ## Live Demo
 [Open the web app](https://jmsdig.github.io/harmonic-atlas/)
@@ -39,36 +39,25 @@ The Tonnetz is a planar network of harmonic proximity. It highlights shared tone
 The same musical material is interpreted simultaneously in both spaces. This makes it possible to compare:
 - large-scale form and return,
 - local harmonic smoothness,
-- repeated harmonic states,
-- and the difference between symbolic and score-driven motion.
+- repeated harmonic states.
 
 ## Features
 - Interactive 3D icosahedron visualization
 - Interactive Tonnetz visualization
-- Full-audio playback of selected classical works
-- Animated geometric path tracking during playback
+- Full-audio playback of selected works
+- Animated geometric tracking during playback
 - Manual clicking on faces and Tonnetz cells
-- MIDI upload pipeline for score-driven harmonic slicing
-- Rachmaninoff Prelude in C-sharp minor pilot mode
+- MIDI upload pipeline for driven harmonic slicing
 - Vertex pitch remapping
 - Cycle-of-fifths and chromatic labeling options
 
-## Included Works
-The current version includes full-audio playback for the following works:
-- J.S. Bach — Prelude in C major, BWV 846
-- J.S. Bach — Cello Suite No. 1 Prelude, BWV 1007
-- Frédéric Chopin — Prelude in E minor, Op. 28 No. 4
-- Frédéric Chopin — Nocturne in E-flat major, Op. 9 No. 2
-- Sergei Rachmaninoff — Prelude in C-sharp minor, Op. 3 No. 2
-
 ## MIDI Pilot
-The repository includes a score-driven experimental pathway
 
 In this mode, the user can upload a MIDI file and run a note-driven pipeline:
 1. parse note events,
 2. extract onset-based harmonic slices,
 3. map those slices to the icosahedron and Tonnetz,
-4. compare the score-driven path with the built-in geometric reading.
+4. compare the driven path with the built-in geometric reading.
 
 This part of the project is especially useful for testing how exact note streams differ from curated symbolic harmonic models.
 
@@ -82,7 +71,6 @@ Built-in works use full external recordings for complete musical playback.
 A parallel event-based harmonic layer maps the currently active state into:
 - an icosahedron face,
 - a Tonnetz cell,
-- and an evolving visible path.
 
 For uploaded MIDI, the analytical layer is derived directly from parsed note events.
 
